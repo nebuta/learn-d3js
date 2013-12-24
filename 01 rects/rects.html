@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+</style>
+
+<body>
+	<ul>
+<li>Basic example of mapping data to svg elements</li>
+<li>1D data, callback for setting attributes.</li>
+	</ul>
+  <div id='svgdiv'></div>
+  <script src="../underscore.js"></script>
+  <script src="../d3.js"></script>
+<script>
+
+// d3.js has convenience functions such as range, map, etc.
+var data = d3.range(10).map(function(d,i){return {v: Math.random()};});
+
+var svg = d3.select('#svgdiv').append('svg').attr({width: 400, height: 400});
+
+svg.selectAll('rect').data(data).enter().append('rect')
+	.attr({y: 0, width: 40, height: 30})
+	.attr('x', function(d,i){return i * 40})
+	.attr('fill',function(d){return d3.hsl(d.v*360,0.5,0.5)});
+
+</script>
+</body>
