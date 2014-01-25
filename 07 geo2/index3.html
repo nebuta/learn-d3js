@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<!--
+
+Fetch file:
+http://www.gsi.go.jp/kankyochiri/gm_jpn.html#gm_jpn_use
+Shape data
+
+To view data: Use QGIS software. Install matplotlib, FreeType library, etc  in advance.
+(Tutorial: http://www.osgeo.jp/wp-content/uploads/2010/11/qgis_hands_on_foss4g2010.pdf)
+
+Convert file:
+ogr2ogr -f GeoJSON prefs_jpn.json polbnda_jpn.shp
+topojson -p nam -o prefs.json prefs_jpn.json
+
+Use server for serving JSON:
+python -m SimpleHTTPServer 8008 &
+
+Tutorial for drawing a map:
+http://bost.ocks.org/mike/map/
+
+Zooming a map:
+http://bl.ocks.org/mbostock/2206590
+
+TopoJSON file drawing according to:
+http://opendata.nikkei.co.jp/article/201306statdb/
+
+-->
+<meta charset="utf-8">
+<style>
+
+svg {
+  float: left;
+  border: 1px solid black;
+  shape-rendering: auto;
+}
+
+g {
+  stroke-width: 0.5px;
+}
+
+path {
+  stroke: #555;
+  fill: #ccf;
+}
+
+path:hover {
+  fill: #faa;
+     }
+
+path.active {
+  fill: red;
+}
+
+</style>
+<body>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://d3js.org/topojson.v1.min.js"></script>
+<script>
+
+var width = 600,
+    height = 800;
+
+var centered;
+var g;
+var svg = d3.select("body").append("svg")
+.attr("width", width)
+.attr("height", height);
+
+  var proj = d3.geo.mercator()
+  .precision(0.1)
+.center([138, 35])
+  //  .parallels([50, 60])
+  .rotate([0,0,0])
+.scale(1200)
+  .translate([width / 2, height / 2]);
+
+  var path;
+  var paths;
+  var info = svg.append('text')
+  .attr('width',80)
+  .attr('height',20)
+  .attr('y',10)
+  .attr('fill','black')
+
+  d3.json("nikkei/prefs.json", function(error, jpn) {
+      d3.tsv("population2.tsv",function(err,dat){
+      console.log(dat);
+ //     var vmax = d3.max(jpn,function(d){return d.value});
+ //     var vmin = d3.min(jpn,function(d){return d.value});
+      var ramp=d3.scale.linear().domain([0,10000]).range(["blue","red"]);
+     
+      var prefecture_geometries = topojson.feature(jpn, jpn.objects.japan);      
+      path = d3.geo.path().projection(proj);
+
+      g = svg.append('g');
+      console.log(prefecture_geometries);
+      
+      var cities = g.selectAll('path')
+      .data(prefecture_geometries.features)
+      .enter().append('path')
+      .attr("class", function(d) { return "subunit " + d.id; })
+   //     .attr("data-value", function(d) { return json_data.data[did].data[d.properties.iso]; })      
+      .attr("d", path);
+
+      cities.on('click',clicked);
+
+//      cities.style('fill',function(d,i){
+//        var v = +pop_dat[i % 40].value;
+ //       console.log(v);
+ //       var c = ramp(v); console.log(c); return c;});
+      });
+
+  });
+
+function clicked(d) {
+  var x, y, k;
+
+  if (d && centered !== d) {
+    var centroid = path.centroid(d);
+    x = centroid[0];
+    y = centroid[1];
+    k = 4;
+    centered = d;
+  } else {
+    x = width / 2;
+    y = height / 2;
+    k = 1;
+    centered = null;
+  }
+
+  g.selectAll("path")
+      .classed("active", centered && function(d) { return d === centered; });
+
+  g.transition()
+      .duration(750)
+      .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")")
+      .style("stroke-width", (0.5 / k) + "px");
+}
+
+</script>

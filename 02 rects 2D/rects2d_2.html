@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+</style>
+
+<body>
+  <div id='svgdiv'></div>
+  <script src="../underscore.js"></script>
+  <script src="../d3.js"></script>
+<script>
+
+var data = d3.range(10).map(function(d,i){return d3.range(10).map(function(dd,j) {return {x: i, y: j, v: Math.random()};})});
+
+console.log(data);
+
+var svg = d3.select('#svgdiv').append('svg').attr({width: 400, height: 300});
+
+var cols = svg.selectAll('g')
+	.data(data)
+	.enter().append('g');
+
+cols.selectAll('rect')
+	.data(function(row){return row;})
+	.enter().append('rect')
+	.call(rect);
+
+function rect(obj) {
+	obj
+		.attr('x',function(d){return d.x*20})
+		.attr('y',function(d){return d.y*20})
+		.attr({width:20, height: 20})
+		.attr('fill',function(d){return d3.hsl(d.v*360,0.5,0.5)});
+}
+
+</script>
+</body>
