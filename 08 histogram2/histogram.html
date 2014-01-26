@@ -1,88 +1,231 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
+<link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css">
+
 <style>
 
-body {
-  font: 10px sans-serif;
-}
+    body {
+        font: 10px sans-serif;
+    }
 
-.bar rect {
-  shape-rendering: crispEdges;
-  fill: pink;
-}
+    .bar rect {
+        shape-rendering: crispEdges;
+        fill: pink;
+    }
 
-.bar text {
-  fill: #fff;
-}
+    .bar text {
+        fill: black;
+    }
 
-.axis path, .axis line {
-  fill: none;
-  stroke: #000;
-  shape-rendering: crispEdges;
-}
+    .axis path, .axis line {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+    }
+
 
 </style>
 <body>
-  <div id='svgdiv'></div>
-  <script src="http://underscorejs.org/underscore.js"></script>
-  <script src="http://d3js.org/d3.v3.min.js"></script>
+<div class='container'>
+    <div class='row'>
+        <div class='col-md-4'>
+            <textarea id="data0" name="" cols="10" rows="35"></textarea>
+            <textarea id="data1" name="" cols="10" rows="35"></textarea>
+            <textarea id="data2" name="" cols="10" rows="35"></textarea>
+            <textarea id="data3" name="" cols="10" rows="35"></textarea>
+            <p>X axis</p>
+            <div class="btn-group">
+                <button type="button" class="btn btn-default xaxis" id='xlinear'>Linear</button>
+                <button type="button" class="btn btn-default xaxis" id='xlog'>Log</button>
+            </div>
+            <div class='row'>
+                <button id='normal' type="button" class="btn btn-default">Normal dist</button>
+                <button id='lognormal' type="button" class="btn btn-default">Log normal</button>
+                <button id='equal' type="button" class="btn btn-default">Equal</button>
+            </div>
+        </div>
+        <div id='svgdiv' class='col-md-4'></div>
+    </div> <!-- .row -->
+</div> <!-- .container -->
+<script src="http://underscorejs.org/underscore.js"></script>
+<script src="http://d3js.org/d3.v3.min.js"></script>
 
-  <script>
+<script>
 
-// Generate a Bates distribution of 10 random variables.
-var values = d3.range(1000).map(d3.random.bates(10));
+    var currentXLog = false;
 
-// A formatter for counts.
-var formatCount = d3.format(",.0f");
+    // Generate a Bates distribution of 10 random variables.
+    var values = d3.range(1000).map(d3.random.bates(10));
 
-var margin = {top: 10, right: 30, bottom: 30, left: 30},
-    width = 960 - margin.left - margin.right,
-    height = 500 - margin.top - margin.bottom;
+    // A formatter for counts.
+    var formatCount = d3.format(",.0f");
 
-var x = d3.scale.linear()
-    .domain([0, 1])
-    .range([0, width]);
+    var margin = {top: 10, right: 30, bottom: 30, left: 30},
+            width = 700 - margin.left - margin.right,
+            height = 500 - margin.top - margin.bottom;
+
+    var svg = d3.select("#svgdiv").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom);
+
+    var g = svg.append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    var axisg = g.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + height + ")")
+
+    var xAxis;
+    var rects;
+
+    var currentRow = 0;
+
+    document.getElementById('data1').value = _.map(values,function(v){return v.toFixed(3)}).join('\n');
+
+    makeHist(values,0);
+
+    function makeHist(_values,idx){
+        idx = ''+(idx || 0);
+        values = _values;
+        // console.log(values);
+        svg.selectAll('g').remove();
+        svg.append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        var axisg = svg.append("g")
+                .attr("class", "x axis")
+                .attr("transform", "translate(0," + height + ")")
+
+
+        //selectAll('rect').data([]).remove();
+        //svg.selectAll('g.bar').data([]).remove();
+
+
+        var x;
+        if(currentXLog) {
+            x = d3.scale.log()
+                    .domain([_.min(values), _.max(values)])
+                    .range([0, width]);
+        }else{
+            x = d3.scale.linear()
+                    .domain([_.min(values), _.max(values)])
+                    .range([0, width]);
+        }
 
 // Generate a histogram using twenty uniformly-spaced bins.
-var data = d3.layout.histogram()
-    .bins(x.ticks(20))
-    (values);
+        var data = d3.layout.histogram()
+                .bins(x.ticks(20))
+                (values);
 
-var y = d3.scale.linear()
-    .domain([0, d3.max(data, function(d) { return d.y; })])
-    .range([height, 0]);
+//console.log(data);
 
-var xAxis = d3.svg.axis()
-    .scale(x)
-    .orient("bottom");
+        y = d3.scale.linear()
+                .domain([0, d3.max(data, function(d) { return d.y; })])
+            //.domain([0,1000])
+                .range([height, 0]);
 
-var svg = d3.select("body").append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-  .append("g")
-    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+        xAxis = d3.svg.axis()
+                .scale(x)
+                .orient("bottom");
 
-var bar = svg.selectAll(".bar")
-    .data(data)
-  .enter().append("g")
-    .attr("class", "bar")
-    .attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; });
+        var bar = svg.selectAll(".bar"+idx)
+                .data(data)
+                .enter().append("g")
+                .attr("class", "bar bar"+idx)
+                .attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; });
 
-bar.append("rect")
-    .attr("x", 1)
-    .attr("width", x(data[0].dx) - 1)
-    .attr("height", function(d) { return height - y(d.y); });
+        rects = bar.append("rect")
+                .attr("x", 1)
+                .attr("width", x(data[0].dx) - x(0) - 1)
+                .attr("height", function(d) { return height - y(d.y); });
 
-bar.append("text")
-    .attr("dy", ".75em")
-    .attr("y", 6)
-    .attr("x", x(data[0].dx) / 2)
-    .attr("text-anchor", "middle")
-    .text(function(d) { return formatCount(d.y); });
+        bar.append("text")
+                .attr("dy", ".75em")
+                .attr("y", 6)
+                .attr("x", (x(data[0].dx) - x(0))/ 2)
+                .attr("text-anchor", "middle")
+                .text(function(d) { return formatCount(d.y); });
 
-svg.append("g")
-    .attr("class", "x axis")
-    .attr("transform", "translate(0," + height + ")")
-    .call(xAxis);
+        axisg.call(xAxis);
+
+        d3.select('#normal').on('click',function(){
+            var elem = document.getElementById('data'+currentRow);
+            //elem.value = (_.map(_.range(1,100),function(v){return v;})).join('\n');
+            var norm = d3.random.normal(10,3);
+            elem.value = _.map(_.range(1,1000),function(){return norm().toFixed(3)}).join('\n');
+            valueChanged(elem,currentRow);
+        });
+
+        d3.select('#lognormal').on('click',function(){
+            var elem = document.getElementById('data'+currentRow);
+            //elem.value = (_.map(_.range(1,100),function(v){return v;})).join('\n');
+            var norm = d3.random.logNormal(0,0.25);
+            elem.value = _.map(_.range(1,1000),function(){return norm().toFixed(3)}).join('\n');
+            valueChanged(elem,currentRow);
+        });
+
+        d3.select('#equal').on('click',function(){
+            var elem = document.getElementById('data'+currentRow);
+            var dist = function(){return Math.random()*50};
+            elem.value = _.map(_.range(1,1000),function(){return (Math.random()*50).toFixed(3)}).join('\n');
+            valueChanged(elem,currentRow);
+        });
+
+
+    }
+
+    d3.select('#data0').on('change',function(){ valueChanged(this,0); });
+    d3.select('#data1').on('change',function(){ valueChanged(this,1); });
+    d3.select('#data2').on('change',function(){ valueChanged(this,2); });
+    d3.select('#data3').on('change',function(){ valueChanged(this,3); });
+
+
+    d3.selectAll('.xaxis').on('click',function(){
+        var c = event.target.id == 'xlog';
+        updateAxis(c);
+    });
+
+    function updateAxis(log){
+        if(currentXLog == log)
+            return;
+
+        currentXLog = log;
+
+        if(log){
+
+            var x = d3.scale.log()
+                    .domain([_.min(values), _.max(values)])
+                    .range([0, width]);
+        }else{
+            var x = d3.scale.linear()
+                    .domain([_.min(values), _.max(values)])
+                    .range([0, width]);
+        }
+        svg.selectAll(".bar")
+                .transition().duration(300)
+                .attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; });
+
+        svg.selectAll(".x")
+                .transition().duration(300)
+                .call(xAxis.scale(x));
+
+        rects = bar.append("rect")
+                .attr("x", 1)
+                .attr("width", x(data[0].dx) - x(0) - 1)
+                .attr("height", function(d) { return height - y(d.y); });
+
+    }
+
+
+    function valueChanged(elem){
+        var t = elem.value;
+        var ls = t.split('\n');
+        var vs = _.filter(_.map(ls,function(d){return parseFloat(d)}),function(v){return !isNaN(v);});
+        // console.log(vs);
+
+        makeHist(vs);
+    }
 
 </script>
+</body>
+

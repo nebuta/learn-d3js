@@ -24,8 +24,12 @@ http://bl.ocks.org/mbostock/2206590
 TopoJSON file drawing according to:
 http://opendata.nikkei.co.jp/article/201306statdb/
 
+Stat data:
+http://www.e-stat.go.jp/SG1/estat/GL08020103.do?_xlsDownload_&fileId=000005017344&releaseCount=2
+
 -->
 <meta charset="utf-8">
+<link href='http://fonts.googleapis.com/css?family=Exo+2' rel='stylesheet' type='text/css'>
 <style>
 
 svg {
@@ -51,8 +55,18 @@ path.active {
   fill: red;
 }
 
+svg text.year {
+font-family: 'Exo 2', sans-serif;
+font-size: 30px;
+}
+
+text.pref {
+font-size: 10px;
+}
+
 </style>
 <body>
+<script src="underscore.js"></script>
 <script src="http://d3js.org/d3.v3.min.js"></script>
 <script src="http://d3js.org/topojson.v1.min.js"></script>
 <script>
@@ -62,6 +76,13 @@ var width = 600,
 
 var centered;
 var g;
+var prefs;
+var ranking;
+var info;
+var dat;
+var ramp=d3.scale.linear().domain([0,10000000]).range(["blue","red"]);
+var ranks;
+
 var svg = d3.select("body").append("svg")
 .attr("width", width)
 .attr("height", height);
@@ -83,34 +104,86 @@ var svg = d3.select("body").append("svg")
   .attr('fill','black')
 
   d3.json("nikkei/prefs.json", function(error, jpn) {
-      d3.tsv("population2.tsv",function(err,dat){
-      console.log(dat);
+      d3.csv("population2.csv",function(err,_dat){
+        dat = _dat;
+      console.log(jpn);
  //     var vmax = d3.max(jpn,function(d){return d.value});
  //     var vmin = d3.min(jpn,function(d){return d.value});
-      var ramp=d3.scale.linear().domain([0,10000]).range(["blue","red"]);
      
-      var prefecture_geometries = topojson.feature(jpn, jpn.objects.japan);      
+      var prefecture_geometries = topojson.feature(jpn, jpn.objects.japan);
+      var list = prefecture_geometries.features.map(function(d){return {name: d.properties.japanese, num: +d.properties.iso.slice(3)};});
+      
       path = d3.geo.path().projection(proj);
 
       g = svg.append('g');
       console.log(prefecture_geometries);
       
-      var cities = g.selectAll('path')
+       prefs = g.selectAll('path')
       .data(prefecture_geometries.features)
       .enter().append('path')
-      .attr("class", function(d) { return "subunit " + d.id; })
-   //     .attr("data-value", function(d) { return json_data.data[did].data[d.properties.iso]; })      
+     // .attr("class", function(d) { return "subunit " + d.id; })
+        .attr("data-value", function(d) { return d.properties.iso; })      
       .attr("d", path);
 
-      cities.on('click',clicked);
+      prefs.on('click',clicked);
 
-//      cities.style('fill',function(d,i){
-//        var v = +pop_dat[i % 40].value;
- //       console.log(v);
- //       var c = ramp(v); console.log(c); return c;});
+      prefs.style('fill',function(d,i){
+        var i = +d.properties.iso.slice(3)-1;
+        var v = +dat[i]['2010'];
+        var c = ramp(v);
+        return c;
       });
+      console.log(list);
+      ranks = svg.append('g').selectAll('text')
+        .data(list)
+        .enter().append('text')
+        .text(function(d){return d.name;})
+        .attr('class','pref');
+
+      info = svg.append('text').attr('x',100).attr('y',100).attr('class','year');
+
+      ranking = {};
+      for(var i = 0; i < 19; i++){
+        var y = ''+(i*5+1920);
+        var yd = _.map(dat,function(d,i){return {name: d.name, v: +d[y], i: i};});
+        var sd = _.map(_.sortBy(yd,function(d){return 0-d.v}),function(d){return {num: d.i, v: d.v};});
+        //console.log(yd,sd);
+        
+          ranking[y] = {};
+        for(var j = 0; j < 47; j++){
+          ranking[y][j] = _.indexOf(_.map(sd,function(d){return d.num;}),j);
+        }
+      }
+      console.log(ranking);
+
+      window.setInterval(timer,1000);
+    });
+
+
 
   });
+
+var count = 0;
+function timer(){
+  var y = "" + (1920 + 5 * (count % 19));
+      prefs.transition().duration(100).style('fill',function(d,i){
+        var i = +d.properties.iso.slice(3)-1;
+        var v = +dat[i][y];
+        var c = ramp(v);
+        return c;
+      });
+
+  info.text(y);
+
+  //var rtext = ranks.text(function(d));
+  ranks.text(function(d){return ranking[y][d.num-1]+1+'. '+d.name;});
+ ranks.transition(200).attr('y',function(d,i){
+     var i = ranking[y][''+(d.num-1)];
+     return i*12+12;
+    })
+
+count += 1;
+};
 
 function clicked(d) {
   var x, y, k;
@@ -135,6 +208,7 @@ function clicked(d) {
       .duration(750)
       .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")")
       .style("stroke-width", (0.5 / k) + "px");
+
 }
 
 </script>
